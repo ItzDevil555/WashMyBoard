@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WashMyBoard — Lock your keys, clean your keyboard</title>
+<meta name="description" content="WashMyBoard locks your keyboard in fullscreen so you can safely wipe, brush, and disinfect without typing chaos." />
+<style>
+  :root{
+    --bg:#ffffff;--fg:#0b0d12;--muted:#6b7280;--border:#e5e7eb;--card:#f8f9fb;
+    --radius:14px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{--bg:#0a0a0c;--fg:#fafafa;--muted:#9aa0a6;--border:#1f2024;--card:#111114;}
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;border:1px solid var(--border);background:var(--card);padding:2px 6px;border-radius:4px}
+  header.nav{max-width:1024px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:24px}
+  .logo{display:flex;align-items:center;gap:8px}
+  .logo .mark{width:32px;height:32px;display:grid;place-items:center;background:var(--fg);color:var(--bg);border-radius:8px;font:700 11px ui-monospace,monospace;letter-spacing:-.5px}
+  .logo span{font-size:14px;font-weight:500;letter-spacing:-.01em}
+  .muted{color:var(--muted)}
+  main{max-width:760px;margin:0 auto;padding:64px 24px 96px;text-align:center}
+  h1{font-size:clamp(40px,7vw,72px);font-weight:600;letter-spacing:-.03em;line-height:1.05;margin:0}
+  h1 .dim{color:var(--muted)}
+  p.lead{max-width:520px;margin:24px auto 0;color:var(--muted);font-size:16px;line-height:1.6}
+  .cta{margin-top:40px;display:inline-flex;align-items:center;gap:12px;background:var(--fg);color:var(--bg);border:0;padding:14px 28px;border-radius:999px;font:500 14px inherit;cursor:pointer;transition:opacity .15s, transform .1s}
+  .cta:hover{opacity:.9}.cta:active{transform:scale(.98)}
+  .hint{margin-top:16px;font-size:12px;color:var(--muted)}
+  section.limits{margin-top:112px;border-top:1px solid var(--border);padding-top:56px;text-align:left}
+  .lim-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:32px}
+  .lim-head h2{font-size:20px;font-weight:600;letter-spacing:-.01em;margin:0}
+  .lim-head span{font-size:12px;color:var(--muted)}
+  .grid{display:grid;grid-template-columns:1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+  @media(min-width:640px){.grid{grid-template-columns:1fr 1fr}}
+  .cell{background:var(--bg);padding:20px}
+  .cell .row{display:flex;align-items:center;gap:8px}
+  .cell .t{font-size:14px;font-weight:500}
+  .cell .why{margin:8px 0 0;font-size:12px;line-height:1.6;color:var(--muted)}
+  .note{margin-top:24px;font-size:12px;line-height:1.6;color:var(--muted)}
+  footer{border-top:1px solid var(--border)}
+  footer .inner{max-width:1024px;margin:0 auto;padding:24px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted)}
+
+  /* Cleaning view */
+  .clean{position:fixed;inset:0;background:var(--bg);color:var(--fg);display:none;flex-direction:column;z-index:50}
+  .clean.on{display:flex}
+  .clean header{display:flex;justify-content:space-between;align-items:center;padding:24px 32px}
+  .pill{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+  .dot{width:8px;height:8px;border-radius:999px;background:#10b981;display:inline-block;position:relative}
+  .dot::after{content:"";position:absolute;inset:0;border-radius:999px;background:#34d399;animation:ping 1.2s ease-out infinite}
+  @keyframes ping{0%{transform:scale(1);opacity:.7}80%,100%{transform:scale(2.2);opacity:0}}
+  .stop{border:1px solid var(--border);background:transparent;color:inherit;padding:6px 14px;border-radius:999px;font:500 12px inherit;cursor:pointer}
+  .stop:hover{background:var(--card)}
+  .clean .body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 24px}
+  .label{font-size:10px;text-transform:uppercase;letter-spacing:.3em;color:var(--muted)}
+  .timer{margin-top:12px;font:600 clamp(64px,12vw,128px) ui-monospace,SFMono-Regular,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+  .last{margin-top:48px;width:100%;max-width:420px;height:112px;border:1px solid var(--border);border-radius:16px;display:grid;place-items:center}
+  .last .k{font:600 24px ui-monospace,monospace;margin-top:4px}
+  .trail{margin-top:32px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:640px}
+  .trail span{border:1px solid var(--border);padding:2px 8px;border-radius:6px;font:400 11px ui-monospace,monospace}
+  .clean footer{border:0;text-align:center;padding:24px;font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- Landing -->
+<div id="landing">
+  <header class="nav">
+    <div class="logo"><div class="mark">WMB</div><span>WashMyBoard</span></div>
+    <a class="muted" href="#limits" style="font-size:12px;text-decoration:none">What's blocked?</a>
+  </header>
+
+  <main>
+    <h1>Clean your keyboard.<br><span class="dim">Type nothing.</span></h1>
+    <p class="lead">WashMyBoard locks your keys so you can wipe, brush, and disinfect — without messaging your boss in gibberish.</p>
+    <button class="cta" onclick="startClean()">Start cleaning <span>→</span></button>
+    <div class="hint">Press <kbd>Esc</kbd> and hold to exit</div>
+
+    <section class="limits" id="limits">
+      <div class="lim-head"><h2>What we can't block</h2><span>and why</span></div>
+      <div class="grid" id="limitsGrid"></div>
+      <p class="note">Browsers only let websites capture keys while in fullscreen, and the operating system always wins for shortcuts that could lock you out of your machine. This is a security guarantee — not a bug we can fix.</p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="inner">
+      <div class="logo"><div class="mark">WMB</div><span>WashMyBoard</span></div>
+      <span>© <span id="yr"></span> WashMyBoard · Crafted by <a href="https://github.com/ItzDevil555" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;text-underline-offset:2px">Amal</a></span>
+    </div>
+  </footer>
+</div>
+
+<!-- Cleaning view -->
+<div class="clean" id="clean">
+  <header>
+    <div class="logo"><div class="mark">WMB</div><span>WashMyBoard</span></div>
+    <div style="display:flex;gap:16px;align-items:center">
+      <div class="pill"><span class="dot"></span>Locked</div>
+      <button class="stop" onclick="stopClean()">Stop</button>
+    </div>
+  </header>
+  <div class="body">
+    <div class="label">Elapsed</div>
+    <div class="timer" id="timer">00:00</div>
+    <div class="last" id="last"><div class="muted" style="font-size:14px">Wipe away — press anything.</div></div>
+    <div class="trail" id="trail"></div>
+  </div>
+  <footer><span id="count">0 keystrokes captured</span></footer>
+</div>
+
+<script>
+  const LIMITS = [
+    {key:"⌘ Q / ⌘ W", title:"macOS quit & close", why:"macOS reserves Cmd-based system shortcuts. Web pages are never allowed to intercept them, even in fullscreen."},
+    {key:"Ctrl+Alt+Del", title:"Windows secure attention", why:"This signal goes directly to Windows itself before any app — by design, so malware can't fake a login screen."},
+    {key:"⊞ Win / 🍎", title:"OS launcher key", why:"Opens the Start menu / Spotlight at the OS level. Browsers have no API to suppress it."},
+    {key:"Power / Fn", title:"Hardware keys", why:"Volume, brightness, eject, and power keys are handled by firmware before software ever sees them."},
+  ];
+  document.getElementById("yr").textContent = new Date().getFullYear();
+  document.getElementById("limitsGrid").innerHTML = LIMITS.map(l =>
+    `<div class="cell"><div class="row"><kbd>${l.key}</kbd><span class="t">${l.title}</span></div><p class="why">${l.why}</p></div>`
+  ).join("");
+
+  let cleaning=false, startedAt=0, timerId=null, pressed=[];
+
+  function fmt(e){
+    const k=e.key;
+    if(k===" ")return"Space";if(k==="ArrowUp")return"↑";if(k==="ArrowDown")return"↓";
+    if(k==="ArrowLeft")return"←";if(k==="ArrowRight")return"→";if(k==="Escape")return"Esc";
+    if(k==="Meta")return"⌘";if(k==="Control")return"Ctrl";if(k==="Alt")return"Alt";if(k==="Shift")return"Shift";
+    return k.length===1?k.toUpperCase():k;
+  }
+  function tick(){
+    const s=Math.floor((Date.now()-startedAt)/1000);
+    const mm=String(Math.floor(s/60)).padStart(2,"0");
+    const ss=String(s%60).padStart(2,"0");
+    document.getElementById("timer").textContent=`${mm}:${ss}`;
+  }
+  function render(){
+    const last=pressed[0];
+    document.getElementById("last").innerHTML = last
+      ? `<div><div class="label">Last key</div><div class="k">${last}</div></div>`
+      : `<div class="muted" style="font-size:14px">Wipe away — press anything.</div>`;
+    document.getElementById("trail").innerHTML = pressed.slice(0,40).map((k,i)=>
+      `<span style="opacity:${(1-i*0.022).toFixed(2)}">${k}</span>`).join("");
+    const n=pressed.length;
+    document.getElementById("count").textContent = `${n} keystroke${n===1?"":"s"} captured`;
+  }
+  function onKey(e){
+    e.preventDefault(); e.stopPropagation();
+    if(e.repeat) return;
+    pressed.unshift(fmt(e)); pressed = pressed.slice(0,80); render();
+  }
+  function onKeyUp(e){ e.preventDefault(); }
+  function onCtx(e){ e.preventDefault(); }
+  async function startClean(){
+    const el=document.getElementById("clean");
+    el.classList.add("on");
+    try{ await el.requestFullscreen({navigationUI:"hide"}); }catch{}
+    try{ await navigator.keyboard?.lock?.(); }catch{}
+    pressed=[]; startedAt=Date.now(); cleaning=true; render(); tick();
+    timerId=setInterval(tick,250);
+    window.addEventListener("keydown",onKey,true);
+    window.addEventListener("keyup",onKeyUp,true);
+    window.addEventListener("contextmenu",onCtx,true);
+  }
+  async function stopClean(){
+    cleaning=false; clearInterval(timerId);
+    window.removeEventListener("keydown",onKey,true);
+    window.removeEventListener("keyup",onKeyUp,true);
+    window.removeEventListener("contextmenu",onCtx,true);
+    try{ navigator.keyboard?.unlock?.(); }catch{}
+    if(document.fullscreenElement){ try{ await document.exitFullscreen(); }catch{} }
+    document.getElementById("clean").classList.remove("on");
+  }
+  document.addEventListener("fullscreenchange",()=>{ if(!document.fullscreenElement && cleaning) stopClean(); });
+</script>
+</body>
+</html>
